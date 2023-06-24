@@ -1,3 +1,4 @@
+using System.Text;
 using CliFx;
 using CliFx.Attributes;
 using CliFx.Infrastructure;
@@ -16,11 +17,15 @@ namespace Cli.Commands;
 [Command("read", Description = "Reads a fasta file and prints the sequences.")]
 public class ReadFastaCommand : ICommand
 {
-    private readonly IFileLoader _fileLoader;
+    private readonly IPafIO _pafIo;
+    private readonly IFastaIO _fastaIo;
+    private readonly ISequenceBuilder _sequenceBuilder;
 
-    public ReadFastaCommand(IFileLoader fileLoader)
+    public ReadFastaCommand(IPafIO pafIo, ISequenceBuilder sequenceBuilder, IFastaIO fastaIo)
     {
-        _fileLoader = fileLoader;
+        _pafIo = pafIo;
+        _sequenceBuilder = sequenceBuilder;
+        _fastaIo = fastaIo;
     }
 
     public ValueTask ExecuteAsync(IConsole console)
@@ -45,26 +50,59 @@ public class ReadFastaCommand : ICommand
 
         var rr = @"/home/patrik/Downloads/pythonProject1(1)/overlapsRR.paf";
         var cr = @"/home/patrik/Downloads/pythonProject1(1)/overlapsCR.paf";
+        var reads = @"/home/patrik/Downloads/EColi - synthetic/ecoli_test_reads.fasta";
+        var contigs = @"/home/patrik/Downloads/EColi - synthetic/ecoli_test_contigs.fasta";
 
-        var graph = _fileLoader.LoadPaf(rr, cr);
+        var graph = _pafIo.LoadPaf(rr, cr);
 
         console.Output.WriteLine(graph.EdgeCount);
 
-        
-        var ctg1PathOv = GraphExtension.ApproachOne(graph, "ctg1");
-        var ctg2PathOv = GraphExtension.ApproachOne(graph, "ctg2");
-        var ctg3PathOv = GraphExtension.ApproachOne(graph, "ctg3");
-        
-        var ctg1PathEx = GraphExtension.ApproachTwo(graph, "ctg1");
-        var ctg2PathEx = GraphExtension.ApproachTwo(graph, "ctg2");
-        var ctg3PathEx = GraphExtension.ApproachTwo(graph, "ctg3");
-        
+
+        var ctg1PathOv = GraphExtension.ApproachOne(graph, "ctg1", e => e.OverlapScore);
+        var ctg2PathOv = GraphExtension.ApproachOne(graph, "ctg2", e => e.OverlapScore);
+        var ctg3PathOv = GraphExtension.ApproachOne(graph, "ctg3", e => e.OverlapScore);
+
+        var ctg1PathEx = GraphExtension.ApproachOne(graph, "ctg1", e => e.ExtensionScore);
+        var ctg2PathEx = GraphExtension.ApproachOne(graph, "ctg2", e => e.ExtensionScore);
+        var ctg3PathEx = GraphExtension.ApproachOne(graph, "ctg3", e => e.ExtensionScore);
+
         var random = new Random(42);
-        
+
         var ctg1PathMnt = GraphExtension.ApproachTree(graph, "ctg1", random);
         var ctg2PathMnt = GraphExtension.ApproachTree(graph, "ctg2", random);
         var ctg3PathMnt = GraphExtension.ApproachTree(graph, "ctg3", random);
-        
+
+        var contigsLoaded = _fastaIo.LoadFasta(contigs);
+        var sequences = _fastaIo.LoadFasta(reads);
+
+        _fastaIo.SaveFasta("ov.fasta", _sequenceBuilder.DebugBuild(
+            contigsLoaded["ctg1"],
+            ctg1PathOv,
+            contigsLoaded["ctg2"],
+            ctg2PathOv,
+            contigsLoaded["ctg3"],
+            sequences
+        ));
+
+        _fastaIo.SaveFasta("ex.fasta", _sequenceBuilder.DebugBuild(
+            contigsLoaded["ctg1"],
+            ctg1PathEx,
+            contigsLoaded["ctg2"],
+            ctg2PathEx,
+            contigsLoaded["ctg3"],
+            sequences
+        ));
+
+        _fastaIo.SaveFasta("mnt.fasta", _sequenceBuilder.DebugBuild(
+            contigsLoaded["ctg1"],
+            ctg1PathMnt,
+            contigsLoaded["ctg2"],
+            ctg2PathMnt,
+            contigsLoaded["ctg3"],
+            sequences
+        ));
+
+
         var dotGraph = graph.ToGraphviz(algorithm =>
         {
             algorithm.CommonVertexFormat.Shape = GraphvizVertexShape.Diamond;
@@ -81,9 +119,29 @@ public class ReadFastaCommand : ICommand
                 args.EdgeFormat.Length = 15;
             };
         });
-        
+
         File.WriteAllText("out.dot", dotGraph);
-        
+
         return default;
+    }
+
+    private static void OutputFasta(string name, Dictionary<string, Sequence> contigsLoaded, Sequence pathCtg1PathOv,
+        Sequence pathCtg2PathOv)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine(">ctg1");
+        sb.AppendLine(contigsLoaded["ctg1"].Data);
+        sb.AppendLine(">ctg1PathOv");
+        sb.AppendLine(pathCtg1PathOv.Data);
+        sb.AppendLine(">ctg2");
+        sb.AppendLine(contigsLoaded["ctg2"].Data);
+        sb.AppendLine(">ctg2PathOv");
+        sb.AppendLine(pathCtg2PathOv.Data);
+        sb.AppendLine(">ctg3");
+        sb.AppendLine(contigsLoaded["ctg3"].Data);
+
+
+        File.WriteAllText(name, sb.ToString());
     }
 }

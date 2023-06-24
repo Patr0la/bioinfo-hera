@@ -1,15 +1,14 @@
 using Lib.Entities;
 using QuikGraph;
-using System.Linq;
-using QuikGraph.Algorithms.Search;
 
 namespace Lib.Services;
 
-public class GraphExtension
+public static class GraphExtension
 {
-    public static ICollection<SequenceVertexScore>? ApproachOne(
+    public static ICollection<SequenceEdge>? ApproachOne(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
-        string start
+        string start,
+        Func<SequenceEdge, double> weightSelector
     )
     {
         var stack = new Stack<SequenceVertexPath>();
@@ -20,20 +19,12 @@ public class GraphExtension
             {
                 Name = start
             })
-            .OrderBy(e => e.OverlapScore)
+            .OrderBy(weightSelector)
             .Select(e =>
                 new SequenceVertexPath()
                 {
                     Current = e.Target,
-                    Path = new SequenceVertexScore[]
-                    {
-                        new SequenceVertexScore()
-                        {
-                            Name = e.Source.Name,
-                            IsAnchor = e.Source.IsAnchor,
-                            Score = e.OverlapScore
-                        }
-                    }
+                    Path = new[] { e }
                 }
             ).ToList();
 
@@ -46,23 +37,13 @@ public class GraphExtension
         {
             var v = stack.Pop();
 
-            var ctgReached = graph.AdjacentVertices(v.Current).FirstOrDefault(v => v.IsAnchor && v.Name != start);
-            if (v.Current.IsAnchor || ctgReached != null)
+            var ctgReachedEdge = graph.AdjacentEdges(v.Current)
+                .FirstOrDefault(e =>
+                    (e.Target.IsAnchor || e.Source.IsAnchor) && (e.Source.Name != start && e.Target.Name != start));
+            if (ctgReachedEdge != null)
             {
                 var path = v.Path.ToList();
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = v.Current.Name,
-                    IsAnchor = v.Current.IsAnchor,
-                    Score = 0
-                });
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = ctgReached.Name,
-                    IsAnchor = ctgReached.IsAnchor,
-                    Score = 0
-                });
-
+                path.Add(ctgReachedEdge);
                 return path;
             }
 
@@ -70,7 +51,7 @@ public class GraphExtension
 
             var newEdge = graph.AdjacentEdges(v.Current)
                 .Where(e => !visited.Contains(e.Target.Name))
-                .MaxBy(e => e.OverlapScore);
+                .MaxBy(weightSelector);
 
             if (newEdge == null)
                 continue;
@@ -78,12 +59,8 @@ public class GraphExtension
             stack.Push(v);
 
             var newPath = v.Path.ToList();
-            newPath.Add(new SequenceVertexScore()
-            {
-                Name = newEdge.Source.Name,
-                IsAnchor = newEdge.Source.IsAnchor,
-                Score = newEdge.OverlapScore
-            });
+            newPath.Add(newEdge);
+
             stack.Push(new SequenceVertexPath()
             {
                 Current = newEdge.Target,
@@ -94,100 +71,14 @@ public class GraphExtension
         return null;
     }
 
-    public static ICollection<SequenceVertexScore>? ApproachTwo(
-        UndirectedGraph<SequenceVertex, SequenceEdge> graph,
-        string start
-    )
-    {
-        var stack = new Stack<SequenceVertexPath>();
-        var visited = new HashSet<string> { start };
-
-        var newEdges = graph
-            .AdjacentEdges(new SequenceVertex()
-            {
-                Name = start
-            })
-            .OrderBy(e => e.ExtensionScore)
-            .Select(e =>
-                new SequenceVertexPath()
-                {
-                    Current = e.Target,
-                    Path = new SequenceVertexScore[]
-                    {
-                        new SequenceVertexScore()
-                        {
-                            Name = e.Source.Name,
-                            IsAnchor = e.Source.IsAnchor,
-                            Score = e.ExtensionScore
-                        }
-                    }
-                }
-            ).ToList();
-
-        foreach (var e in newEdges)
-        {
-            stack.Push(e);
-        }
-
-        while (stack.Count > 0)
-        {
-            var v = stack.Pop();
-
-            var ctgReached = graph.AdjacentVertices(v.Current).FirstOrDefault(v => v.IsAnchor && v.Name != start);
-            if (v.Current.IsAnchor || ctgReached != null)
-            {
-                var path = v.Path.ToList();
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = v.Current.Name,
-                    IsAnchor = v.Current.IsAnchor,
-                    Score = 0
-                });
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = ctgReached.Name,
-                    IsAnchor = ctgReached.IsAnchor,
-                    Score = 0
-                });
-                return path;
-            }
-
-            visited.Add(v.Current.Name);
-
-            var newEdge = graph.AdjacentEdges(v.Current)
-                .Where(e => !visited.Contains(e.Target.Name))
-                .MaxBy(e => e.ExtensionScore);
-
-            if (newEdge == null)
-                continue;
-
-            stack.Push(v);
-
-            var newPath = v.Path.ToList();
-            newPath.Add(new SequenceVertexScore()
-            {
-                Name = newEdge.Source.Name,
-                IsAnchor = newEdge.Source.IsAnchor,
-                Score = newEdge.ExtensionScore
-            });
-            stack.Push(new SequenceVertexPath()
-            {
-                Current = newEdge.Target,
-                Path = newPath.ToArray(),
-            });
-        }
-
-        return null;
-    }
-
-    public static ICollection<SequenceVertexScore>? ApproachTree(
+    public static ICollection<SequenceEdge>? ApproachTree(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Random random
     )
     {
         var stack = new Stack<SequenceVertexPath>();
-        var visited = new HashSet<string> { };
+        var visited = new HashSet<string>();
 
         stack.Push(new SequenceVertexPath()
         {
@@ -195,29 +86,20 @@ public class GraphExtension
             {
                 Name = start
             },
-            Path = new SequenceVertexScore[] { }
+            Path = new SequenceEdge[] { }
         });
 
         while (stack.Count > 0)
         {
             var v = stack.Pop();
 
-            var ctgReached = graph.AdjacentVertices(v.Current).FirstOrDefault(v => v.IsAnchor && v.Name != start);
-            if ((v.Current.IsAnchor && v.Current.Name != start) || ctgReached != null)
+            var ctgReachedEdge = graph.AdjacentEdges(v.Current)
+                .FirstOrDefault(e =>
+                    (e.Target.IsAnchor || e.Source.IsAnchor) && (e.Source.Name != start && e.Target.Name != start));
+            if (ctgReachedEdge != null)
             {
                 var path = v.Path.ToList();
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = v.Current.Name,
-                    IsAnchor = v.Current.IsAnchor,
-                    Score = 0
-                });
-                path.Add(new SequenceVertexScore()
-                {
-                    Name = ctgReached.Name,
-                    IsAnchor = ctgReached.IsAnchor,
-                    Score = 0
-                });
+                path.Add(ctgReachedEdge);
                 return path;
             }
 
@@ -225,7 +107,7 @@ public class GraphExtension
 
             var newEdge = WeightedPick(
                 graph.AdjacentEdges(v.Current)
-                    .Where(v => !visited.Contains(v.Target.Name))
+                    .Where(ae => !visited.Contains(ae.Target.Name))
                     .ToList()
                 , random);
 
@@ -235,12 +117,9 @@ public class GraphExtension
             stack.Push(v);
 
             var newPath = v.Path.ToList();
-            newPath.Add(new SequenceVertexScore()
-            {
-                Name = newEdge.Source.Name,
-                IsAnchor = newEdge.Source.IsAnchor,
-                Score = newEdge.ExtensionScore
-            });
+
+            newPath.Add(newEdge);
+
             stack.Push(new SequenceVertexPath()
             {
                 Current = newEdge.Target,
@@ -251,7 +130,7 @@ public class GraphExtension
         return null;
     }
 
-    public static SequenceEdge? WeightedPick(ICollection<SequenceEdge> vertices, Random random)
+    private static SequenceEdge? WeightedPick(ICollection<SequenceEdge> vertices, Random random)
     {
         var sum = vertices.Sum(v => v.ExtensionScore);
 
@@ -273,11 +152,6 @@ public class GraphExtension
 
 class SequenceVertexPath
 {
-    public SequenceVertexScore[] Path { get; set; }
-    public SequenceVertex Current { get; set; }
-}
-
-public class SequenceVertexScore : SequenceVertex
-{
-    public double Score { get; set; }
+    public SequenceEdge[] Path { get; init; } = null!;
+    public SequenceVertex Current { get; init; } = null!;
 }

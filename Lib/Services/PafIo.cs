@@ -1,3 +1,4 @@
+using System.Text;
 using Lib.Entities;
 using Lib.Interfaces;
 using QuikGraph;
@@ -5,7 +6,7 @@ using QuikGraph.Algorithms;
 
 namespace Lib.Services;
 
-public class FileLoader : IFileLoader
+public class PafIo : IPafIO
 {
     public UndirectedGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath)
     {
@@ -132,16 +133,16 @@ public class FileLoader : IFileLoader
         {
             Source = v1,
             Target = v2,
+            
+            SourceStart = qstart,
+            SourceEnd = qend,
+            TargetStart = tstart,
+            TargetEnd = tend,
 
             SameStrand = strand == "+",
             OverlapScore = overlap_score,
             ExtensionScore = overlap_score + (float)el2 / 2 - (float)(oh1 + oh2) / 2,
             SequenceIdentity = si,
         };
-    }
-
-    public ICollection<Sequence> LoadFasta(string filePath)
-    {
-        throw new NotImplementedException();
     }
 }

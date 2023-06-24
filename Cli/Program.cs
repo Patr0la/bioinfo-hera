@@ -12,7 +12,9 @@ public static class Program
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton<IFileLoader, FileLoader>();
+        services.AddSingleton<IPafIO, PafIo>();
+        services.AddSingleton<IFastaIO, FastaIO>();
+        services.AddSingleton<ISequenceBuilder, SequenceBuilder>();
         
         services.AddTransient<ReadFastaCommand>();
         
