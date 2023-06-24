@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using CliFx;
 using CliFx.Attributes;
@@ -20,61 +22,67 @@ public class ReadFastaCommand : ICommand
     private readonly IPafIO _pafIo;
     private readonly IFastaIO _fastaIo;
     private readonly ISequenceBuilder _sequenceBuilder;
+    private readonly IConcensusBuilder _concensusBuilder;
 
-    public ReadFastaCommand(IPafIO pafIo, ISequenceBuilder sequenceBuilder, IFastaIO fastaIo)
+    public ReadFastaCommand(IPafIO pafIo, ISequenceBuilder sequenceBuilder, IFastaIO fastaIo, IConcensusBuilder concensusBuilder)
     {
         _pafIo = pafIo;
         _sequenceBuilder = sequenceBuilder;
         _fastaIo = fastaIo;
+        _concensusBuilder = concensusBuilder;
     }
 
     public ValueTask ExecuteAsync(IConsole console)
     {
-        var g = new BidirectionalGraph<SequenceVertex, SequenceEdge>();
-        var ctg1 = new SequenceVertex() { Name = "ctg1" };
-        var v2 = new SequenceVertex() { Name = "b" };
-        var v3 = new SequenceVertex() { Name = "c" };
-        var v4 = new SequenceVertex() { Name = "d" };
-        g.AddVertex(ctg1);
-        g.AddVertex(v2);
-        g.AddVertex(v3);
-        g.AddVertex(v4);
-        g.AddEdge(new SequenceEdge() { Source = ctg1, Target = v2, OverlapScore = 10 });
-        g.AddEdge(new SequenceEdge() { Source = ctg1, Target = v3, OverlapScore = 20 });
-        g.AddEdge(new SequenceEdge() { Source = ctg1, Target = v4, OverlapScore = 30 });
-        g.AddEdge(new SequenceEdge() { Source = v2, Target = v3, OverlapScore = 40 });
-        g.AddEdge(new SequenceEdge() { Source = v2, Target = v4, OverlapScore = 50 });
-        g.AddEdge(new SequenceEdge() { Source = v3, Target = v4, OverlapScore = 60 });
-        console.Output.WriteLine(g.EdgeCount);
-
-
         var rr = @"/home/patrik/Downloads/pythonProject1(1)/overlapsRR.paf";
         var cr = @"/home/patrik/Downloads/pythonProject1(1)/overlapsCR.paf";
         var reads = @"/home/patrik/Downloads/EColi - synthetic/ecoli_test_reads.fasta";
         var contigs = @"/home/patrik/Downloads/EColi - synthetic/ecoli_test_contigs.fasta";
 
+        var contigsLoaded = _fastaIo.LoadFasta(contigs);
+        var sequences = _fastaIo.LoadFasta(reads);
+        
         var graph = _pafIo.LoadPaf(rr, cr);
 
         console.Output.WriteLine(graph.EdgeCount);
 
 
-        var ctg1PathOv = GraphExtension.ApproachOne(graph, "ctg1", e => e.OverlapScore);
-        var ctg2PathOv = GraphExtension.ApproachOne(graph, "ctg2", e => e.OverlapScore);
-        var ctg3PathOv = GraphExtension.ApproachOne(graph, "ctg3", e => e.OverlapScore);
+        var ctg1PathOv = GraphExtension.DFSByWeight(graph, "ctg1", e => e.OverlapScore);
+        var ctg2PathOv = GraphExtension.DFSByWeight(graph, "ctg2", e => e.OverlapScore);
+        var ctg3PathOv = GraphExtension.DFSByWeight(graph, "ctg3", e => e.OverlapScore);
 
-        var ctg1PathEx = GraphExtension.ApproachOne(graph, "ctg1", e => e.ExtensionScore);
-        var ctg2PathEx = GraphExtension.ApproachOne(graph, "ctg2", e => e.ExtensionScore);
-        var ctg3PathEx = GraphExtension.ApproachOne(graph, "ctg3", e => e.ExtensionScore);
+        var ctg1PathEx = GraphExtension.DFSByWeight(graph, "ctg1", e => e.ExtensionScore);
+        var ctg2PathEx = GraphExtension.DFSByWeight(graph, "ctg2", e => e.ExtensionScore);
+        var ctg3PathEx = GraphExtension.DFSByWeight(graph, "ctg3", e => e.ExtensionScore);
 
         var random = new Random(42);
-
-        var ctg1PathMnt = GraphExtension.ApproachTree(graph, "ctg1", random);
-        var ctg2PathMnt = GraphExtension.ApproachTree(graph, "ctg2", random);
-        var ctg3PathMnt = GraphExtension.ApproachTree(graph, "ctg3", random);
-
-        var contigsLoaded = _fastaIo.LoadFasta(contigs);
-        var sequences = _fastaIo.LoadFasta(reads);
-
+        
+        var MONTE_CARLO_REPEATS = 1000;
+        
+        var monteCarloCtg1Paths = new List<ICollection<SequenceEdge>>();
+        var monteCarloCtg2Paths = new List<ICollection<SequenceEdge>>();
+        var monteCarloCtg3Paths = new List<ICollection<SequenceEdge>>();
+        
+        var time = new Stopwatch();
+        time.Start();
+        Parallel.ForEach(Partitioner.Create(0, MONTE_CARLO_REPEATS), range =>
+        {
+            for (int i = range.Item1; i < range.Item2; i++)
+            {
+                var ctg1PathMnt = GraphExtension.MonteCarloSearch(graph, "ctg1", random);
+                monteCarloCtg1Paths.Add(ctg1PathMnt);
+            
+                var ctg2PathMnt = GraphExtension.MonteCarloSearch(graph, "ctg2", random);
+                monteCarloCtg2Paths.Add(ctg2PathMnt);
+            
+                var ctg3PathMnt = GraphExtension.MonteCarloSearch(graph, "ctg3", random);
+                monteCarloCtg3Paths.Add(ctg3PathMnt);
+            }
+        });
+        var endTime = time.ElapsedMilliseconds;
+        console.Output.WriteLine($"Monte Carlo paraller with partitioner took {endTime} ms");
+        
+        /*
         _fastaIo.SaveFasta("ov.fasta", _sequenceBuilder.DebugBuild(
             contigsLoaded["ctg1"],
             ctg1PathOv,
@@ -91,17 +99,27 @@ public class ReadFastaCommand : ICommand
             ctg2PathEx,
             contigsLoaded["ctg3"],
             sequences
-        ));
-
-        _fastaIo.SaveFasta("mnt.fasta", _sequenceBuilder.DebugBuild(
-            contigsLoaded["ctg1"],
-            ctg1PathMnt,
-            contigsLoaded["ctg2"],
-            ctg2PathMnt,
-            contigsLoaded["ctg3"],
-            sequences
-        ));
-
+        ));*/
+        
+        var allCtg1Ctg1Paths = new List<ICollection<SequenceEdge>>();
+        allCtg1Ctg1Paths.Add(ctg1PathOv);
+        allCtg1Ctg1Paths.Add(ctg1PathEx);
+        allCtg1Ctg1Paths.AddRange(monteCarloCtg1Paths);
+        
+        _concensusBuilder.Concensus(allCtg1Ctg1Paths, sequences);
+        
+        var allCtg2Ctg2Paths = new List<ICollection<SequenceEdge>>();
+        allCtg2Ctg2Paths.Add(ctg2PathOv);
+        allCtg2Ctg2Paths.Add(ctg2PathEx);
+        allCtg2Ctg2Paths.AddRange(monteCarloCtg2Paths);
+        
+        _concensusBuilder.Concensus(allCtg2Ctg2Paths, sequences);
+        
+        var allCtg3Ctg3Paths = new List<ICollection<SequenceEdge>>();
+        allCtg3Ctg3Paths.Add(ctg3PathOv);
+        allCtg3Ctg3Paths.Add(ctg3PathEx);
+        allCtg3Ctg3Paths.AddRange(monteCarloCtg3Paths);
+        
 
         var dotGraph = graph.ToGraphviz(algorithm =>
         {

@@ -5,7 +5,7 @@ namespace Lib.Services;
 
 public static class GraphExtension
 {
-    public static ICollection<SequenceEdge>? ApproachOne(
+    public static ICollection<SequenceEdge>? DFSByWeight(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Func<SequenceEdge, double> weightSelector
@@ -71,7 +71,7 @@ public static class GraphExtension
         return null;
     }
 
-    public static ICollection<SequenceEdge>? ApproachTree(
+    public static ICollection<SequenceEdge>? MonteCarloSearch(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Random random

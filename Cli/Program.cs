@@ -14,6 +14,7 @@ public static class Program
 
         services.AddSingleton<IPafIO, PafIo>();
         services.AddSingleton<IFastaIO, FastaIO>();
+        services.AddSingleton<IConcensusBuilder, ConcensusBuilder>();
         services.AddSingleton<ISequenceBuilder, SequenceBuilder>();
         
         services.AddTransient<ReadFastaCommand>();

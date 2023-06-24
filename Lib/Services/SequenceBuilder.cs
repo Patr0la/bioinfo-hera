@@ -42,7 +42,7 @@ public class SequenceBuilder : ISequenceBuilder
         };
     }
     
-    private Sequence ConnectBetweenContigs(ICollection<SequenceEdge> path, Dictionary<string, Sequence> sequences)
+    public Sequence ConnectBetweenContigs(ICollection<SequenceEdge> path, Dictionary<string, Sequence> sequences)
     {
         var sb = new StringBuilder();
         int index = 0;

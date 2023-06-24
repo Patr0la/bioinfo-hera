@@ -100,7 +100,7 @@ public class PafIo : IPafIO
 
         if (isContig)
         {
-            if (qstart > 5000 && qend < qlen - 5000)
+            if (qstart > 10000 && qend < qlen - 10000)
             {
                 if (overlap_score > 10000)
                 {
