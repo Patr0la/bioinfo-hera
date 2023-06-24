@@ -50,31 +50,11 @@ public class ReadFastaCommand : ICommand
 
         console.Output.WriteLine(graph.EdgeCount);
 
-        var dfs = new UndirectedDepthFirstSearchAlgorithm<SequenceVertex, SequenceEdge>(
-            null,
-            graph,
-            new Dictionary<SequenceVertex, GraphColor>(),
-            edges => edges.OrderByDescending(e => e.OverlapScore)
-        );
-        var ctg1Vertex = graph.Vertices.First(v => v.Name == "ctg1");
+        GraphExtension.ApproachOne(graph);
         
-        dfs.FinishVertex += (v) =>
-        {
-            if (v.IsAnchor && v.Name != "ctg1")
-            {
-                console.Output.WriteLine(v.Name);
-                dfs.Abort();
-            }
-        };
-        dfs.Compute(ctg1Vertex);
-
-        var p = GraphExtension.ApproachOne(graph);
-
-        console.Output.WriteLine(p.Count);
-
-        /*
         
-        var dotGraph = reads.ToGraphviz(algorithm =>
+        
+        var dotGraph = graph.ToGraphviz(algorithm =>
         {
             algorithm.CommonVertexFormat.Shape = GraphvizVertexShape.Diamond;
             algorithm.CommonEdgeFormat.ToolTip = "Edge tooltip";
@@ -92,7 +72,7 @@ public class ReadFastaCommand : ICommand
         });
         
         File.WriteAllText("out.dot", dotGraph);
-        */
+        
         return default;
     }
 }

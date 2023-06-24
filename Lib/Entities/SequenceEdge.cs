@@ -10,6 +10,8 @@ public class SequenceEdge : IEdge<SequenceVertex>
     
     public bool SameStrand { get; set; }
     
+    
+    
     public float OverlapScore { get; set; }
     public float ExtensionScore { get; set; }
     public float SequenceIdentity { get; set; }
