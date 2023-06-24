@@ -50,9 +50,20 @@ public class ReadFastaCommand : ICommand
 
         console.Output.WriteLine(graph.EdgeCount);
 
-        GraphExtension.ApproachOne(graph);
         
+        var ctg1PathOv = GraphExtension.ApproachOne(graph, "ctg1");
+        var ctg2PathOv = GraphExtension.ApproachOne(graph, "ctg2");
+        var ctg3PathOv = GraphExtension.ApproachOne(graph, "ctg3");
         
+        var ctg1PathEx = GraphExtension.ApproachTwo(graph, "ctg1");
+        var ctg2PathEx = GraphExtension.ApproachTwo(graph, "ctg2");
+        var ctg3PathEx = GraphExtension.ApproachTwo(graph, "ctg3");
+        
+        var random = new Random(42);
+        
+        var ctg1PathMnt = GraphExtension.ApproachTree(graph, "ctg1", random);
+        var ctg2PathMnt = GraphExtension.ApproachTree(graph, "ctg2", random);
+        var ctg3PathMnt = GraphExtension.ApproachTree(graph, "ctg3", random);
         
         var dotGraph = graph.ToGraphviz(algorithm =>
         {

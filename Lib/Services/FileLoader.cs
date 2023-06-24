@@ -101,13 +101,17 @@ public class FileLoader : IFileLoader
         {
             if (qstart > 5000 && qend < qlen - 5000)
             {
-                ignored.Add(tseqname);
+                if (overlap_score > 10000)
+                {
+                    ignored.Add(tseqname);
+                }
+
                 return null;
             }
         }
         else
         {
-            if(qseqname == tseqname) return null;
+            if (qseqname == tseqname) return null;
             if (ignored.Contains(qseqname) || ignored.Contains(tseqname)) return null;
         }
 
