@@ -1,16 +1,15 @@
-using System.Text;
 using Lib.Entities;
 using Lib.Interfaces;
 using QuikGraph;
-using QuikGraph.Algorithms;
 
 namespace Lib.Services;
 
 public class PafIo : IPafIO
 {
-    public UndirectedGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath)
+    public BidirectionalGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath,
+        int MinContigOverlap, float MinSequenceIdentity)
     {
-        var graph = new UndirectedGraph<SequenceVertex, SequenceEdge>();
+        var graph = new BidirectionalGraph<SequenceVertex, SequenceEdge>();
 
         var ignored = new HashSet<string>();
 
@@ -22,7 +21,7 @@ public class PafIo : IPafIO
             if (v == null) continue;
 
             var existingEdge = graph
-                .AdjacentEdges(v.Target)
+                .OutEdges(v.Target)
                 .FirstOrDefault(e => e.Source.IsAnchor);
 
             if (existingEdge == null)
@@ -50,25 +49,10 @@ public class PafIo : IPafIO
 
         reader.Close();
 
-        /*
-        foreach (var v in graph.Vertices)
-        {
-            if(v.IsAnchor) continue;
-            
-            var anchors = graph.AdjacentEdges(v)
-                .Where(e => e.Target.IsAnchor || e.Source.IsAnchor)
-                .ToList();
-
-            if (anchors.Count < 2) continue;
-
-            anchors.Remove(anchors.MaxBy(e => e.OverlapScore));
-            graph.RemoveEdges(anchors);
-        }
-*/
         return graph;
     }
 
-    private SequenceEdge? GetVertex(string pafLine, UndirectedGraph<SequenceVertex, SequenceEdge> graph,
+    private SequenceEdge? GetVertex(string pafLine, BidirectionalGraph<SequenceVertex, SequenceEdge> graph,
         HashSet<string> ignored,
         bool isContig = false)
     {

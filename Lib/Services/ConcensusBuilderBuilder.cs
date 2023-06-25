@@ -13,20 +13,21 @@ public class ConsensusBuilder : IConsensusBuilder
         _sequenceBuilder = sequenceBuilder;
     }
 
-    private const int MAX_GROUP_SIZE = 10000;
-
-    public Sequence Concensus(ICollection<ICollection<SequenceEdge>> paths,
-        Dictionary<string, Sequence> sequences)
+    public Sequence Concensus(
+        ICollection<ICollection<SequenceEdge>> paths,
+        Dictionary<string, Sequence> sequences,
+        int GroupSizeMinDifference,
+        int GroupSizeWindow)
     {
         var builtPaths = paths.Select(path => _sequenceBuilder.ConnectBetweenContigs(path, sequences)).ToList();
 
         var minLength = builtPaths.Min(path => path.Data.Length);
         var maxLength = builtPaths.Max(path => path.Data.Length);
 
-        if (maxLength - minLength > MAX_GROUP_SIZE)
+        if (maxLength - minLength > GroupSizeMinDifference)
         {
             var sortedGroupsBy1kb = builtPaths
-                .GroupBy(path => (path.Data.Length - minLength) / 1000)
+                .GroupBy(path => (path.Data.Length - minLength) / GroupSizeWindow)
                 .OrderBy(group => group.Key)
                 .ToList();
 

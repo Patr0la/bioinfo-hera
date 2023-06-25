@@ -5,13 +5,6 @@ namespace Lib.Interfaces;
 
 public class SequenceBuilder : ISequenceBuilder
 {
-    private readonly IPafIO _pafIo;
-
-    public SequenceBuilder(IPafIO pafIo)
-    {
-        _pafIo = pafIo;
-    }
-
     public Sequence Build(ICollection<SequenceEdge> path, Dictionary<string, Sequence> sequences)
     {
         var sb = new StringBuilder();

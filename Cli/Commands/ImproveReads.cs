@@ -52,20 +52,32 @@ public class ImproveReads : ICommand
 
     [CommandOption("monte-carlo-repeats", Description = "The number of monte carlo repeats.")]
     public int MonteCarloRepeats { get; set; } = 3000;
+    
+    [CommandOption("random-seed", Description = "The random seed. Default is current time in milliseconds.")]
+    public int RandomSeed { get; set; } = DateTime.Now.Millisecond;
+    
+    [CommandOption("min-contig-overlap", Description = "The minimum overlap.")]
+    public int MinContigOverlap { get; set; } = 2500;
+    
+    [CommandOption("min-sequence-identity", Description = "The minimum sequence identity.")]
+    public float MinSequenceIdentity { get; set; } = 0.8f;
+    
+    [CommandOption("group-size-min-difference", Description = "The group size min difference.")]
+    public int GroupSizeMinDifference { get; set; } = 10000;
+    
+    [CommandOption("group-size-window", Description = "The group size window.")]
+    public int GroupSizeWindow { get; set; } = 1000;
+    
 
     public ValueTask ExecuteAsync(IConsole console)
     {
+        var random = new Random(RandomSeed);
+        
         var contigs = _fastaIo.LoadFasta(ContigsPath);
         var sequences = _fastaIo.LoadFasta(ReadsPath);
-
-        var graph = _pafIo.LoadPaf(ReadReadOverlapsPath, ContigReadOverlapsPath);
-
-        console.Output.WriteLine(graph.EdgeCount);
-        var random = new Random(42);
-
-        var ctgConnectionPaths = new List<ICollection<SequenceEdge>>(contigs.Count);
-
-        var bestPaths = new List<Sequence>();
+        var graph = _pafIo.LoadPaf(ReadReadOverlapsPath, ContigReadOverlapsPath, MinContigOverlap, MinSequenceIdentity);
+        
+        var ctgConnectionPaths = new List<Sequence>(contigs.Count);
 
         foreach (var contig in contigs)
         {
@@ -87,13 +99,13 @@ public class ImproveReads : ICommand
 
             if (validPaths.Count > 0)
             {
-                var bestPath = _consensusBuilder.Concensus(validPaths, sequences);
+                var bestPath = _consensusBuilder.Concensus(validPaths, sequences, GroupSizeMinDifference, GroupSizeWindow);
 
-                bestPaths.Add(bestPath);
+                ctgConnectionPaths.Add(bestPath);
             }
         }
 
-        _fastaIo.SaveFasta(OutputPath, _sequenceBuilder.DebugBuild(contigs.Values, bestPaths));
+        _fastaIo.SaveFasta(OutputPath, _sequenceBuilder.DebugBuild(contigs.Values, ctgConnectionPaths));
 
             var dotGraph = graph.ToGraphviz(algorithm =>
         {

@@ -12,11 +12,9 @@ public class SequenceEdge : IEdge<SequenceVertex>
 
     public int SourceStart { get; set; }
     public int SourceEnd { get; set; }
-    public int SourceEndLenght => SourceEnd - SourceStart;
 
     public int TargetStart { get; set; }
     public int TargetEnd { get; set; }
-    public int TargetEndLenght => TargetEnd - TargetStart;
 
 
     public float OverlapScore { get; set; }

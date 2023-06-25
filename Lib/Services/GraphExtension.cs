@@ -7,15 +7,13 @@ namespace Lib.Services;
 
 public class GraphExtender : IGraphExtender
 {
-    public ICollection<ICollection<SequenceEdge>?> DFSByWeight(
-        UndirectedGraph<SequenceVertex, SequenceEdge> graph,
+    public ICollection<ICollection<SequenceEdge>?> DFSByWeight(BidirectionalGraph<SequenceVertex, SequenceEdge> graph,
         string start,
-        Func<SequenceEdge, double> weightSelector
-    )
+        Func<SequenceEdge, double> weightSelector)
     {
         var foundPaths = new List<ICollection<SequenceEdge>?>();
 
-        var startableEdges = graph.AdjacentEdges(new SequenceVertex()
+        var startableEdges = graph.OutEdges(new SequenceVertex()
         {
             Name = start
         }).ToList();
@@ -46,7 +44,7 @@ public class GraphExtender : IGraphExtender
                 {
                     var v = stack.Pop();
 
-                    var ctgReachedEdge = graph.AdjacentEdges(v.Current)
+                    var ctgReachedEdge = graph.InEdges(v.Current)
                         .FirstOrDefault(e =>
                             (e.Target.IsAnchor || e.Source.IsAnchor) &&
                             (e.Source.Name != start && e.Target.Name != start));
@@ -60,7 +58,7 @@ public class GraphExtender : IGraphExtender
 
                     visited.Add(v.Current.Name);
 
-                    var newEdge = graph.AdjacentEdges(v.Current)
+                    var newEdge = graph.OutEdges(v.Current)
                         .Where(e => !visited.Contains(e.Target.Name))
                         .MaxBy(weightSelector);
 
@@ -85,7 +83,7 @@ public class GraphExtender : IGraphExtender
         return foundPaths;
     }
 
-    public ICollection<SequenceEdge>? MonteCarloSearch(UndirectedGraph<SequenceVertex, SequenceEdge> graph,
+    public ICollection<SequenceEdge>? MonteCarloSearch(BidirectionalGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Random random, Func<SequenceEdge, double> weightSelector)
     {
@@ -105,7 +103,7 @@ public class GraphExtender : IGraphExtender
         {
             var v = stack.Pop();
 
-            var ctgReachedEdge = graph.AdjacentEdges(v.Current)
+            var ctgReachedEdge = graph.OutEdges(v.Current)
                 .FirstOrDefault(e =>
                     (e.Target.IsAnchor || e.Source.IsAnchor) && (e.Source.Name != start && e.Target.Name != start));
             if (ctgReachedEdge != null)
@@ -118,7 +116,7 @@ public class GraphExtender : IGraphExtender
             visited.Add(v.Current.Name);
 
             var newEdge = WeightedPick(
-                graph.AdjacentEdges(v.Current)
+                graph.OutEdges(v.Current)
                     .Where(ae => !visited.Contains(ae.Target.Name))
                     .ToList(),
                 random,
@@ -162,10 +160,4 @@ public class GraphExtender : IGraphExtender
 
         return vertices.LastOrDefault();
     }
-}
-
-class SequenceVertexPath
-{
-    public SequenceEdge[] Path { get; init; } = null!;
-    public SequenceVertex Current { get; init; } = null!;
 }
