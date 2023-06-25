@@ -7,7 +7,7 @@ namespace Lib.Services;
 public class PafIo : IPafIO
 {
     public BidirectionalGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath,
-        int MinContigOverlap, float MinSequenceIdentity)
+        int minContigOverlap, float minSequenceIdentity)
     {
         var graph = new BidirectionalGraph<SequenceVertex, SequenceEdge>();
 
@@ -17,7 +17,7 @@ public class PafIo : IPafIO
         using var reader2 = new StreamReader(overlapsCRPath);
         while ((line = reader2.ReadLine()) != null)
         {
-            var v = GetVertex(line, graph, ignored, true);
+            var v = GetVertex(line, graph, ignored, minContigOverlap, minSequenceIdentity, true);
             if (v == null) continue;
 
             var existingEdge = graph
@@ -41,7 +41,7 @@ public class PafIo : IPafIO
         using var reader = new StreamReader(overlapsRRPath);
         while ((line = reader.ReadLine()) != null)
         {
-            var e = GetVertex(line, graph, ignored);
+            var e = GetVertex(line, graph, ignored, minContigOverlap, minSequenceIdentity);
             if (e == null) continue;
 
             graph.AddEdge(e);
@@ -52,9 +52,13 @@ public class PafIo : IPafIO
         return graph;
     }
 
-    private SequenceEdge? GetVertex(string pafLine, BidirectionalGraph<SequenceVertex, SequenceEdge> graph,
+    private SequenceEdge? GetVertex(string pafLine,
+        BidirectionalGraph<SequenceVertex, SequenceEdge> graph,
         HashSet<string> ignored,
-        bool isContig = false)
+        int minContigOverlap,
+        float minSequenceIdentity,
+        bool isContig = false
+    )
     {
         var fields = pafLine.Split('\t');
 
@@ -80,7 +84,7 @@ public class PafIo : IPafIO
         var el2 = tstart;
 
         var si = (float)resMatches / blockLen;
-        if (si < 0.8)
+        if (si < minSequenceIdentity)
         {
             return null;
         }
@@ -89,9 +93,9 @@ public class PafIo : IPafIO
 
         if (isContig)
         {
-            if (qstart > 2500 && qend < qlen - 2500)
+            if (qstart > minContigOverlap && qend < qlen - minContigOverlap)
             {
-                if (overlap_score > 10000)
+                if (overlap_score > minContigOverlap * 4)
                 {
                     ignored.Add(tseqname);
                 }

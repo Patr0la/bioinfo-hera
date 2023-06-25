@@ -5,5 +5,5 @@ namespace Lib.Interfaces;
 
 public interface IPafIO
 {
-    public BidirectionalGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath, int MinContigOverlap, float MinSequenceIdentity);
+    public BidirectionalGraph<SequenceVertex, SequenceEdge> LoadPaf(string overlapsRRPath, string overlapsCRPath, int minContigOverlap, float minSequenceIdentity);
 }
