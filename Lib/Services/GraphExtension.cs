@@ -1,11 +1,12 @@
 using Lib.Entities;
+using Lib.Interfaces;
 using QuikGraph;
 
 namespace Lib.Services;
 
-public static class GraphExtension
+public class GraphExtender : IGraphExtender
 {
-    public static ICollection<SequenceEdge>? DFSByWeight(
+    public ICollection<SequenceEdge>? DFSByWeight(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Func<SequenceEdge, double> weightSelector
@@ -71,11 +72,9 @@ public static class GraphExtension
         return null;
     }
 
-    public static ICollection<SequenceEdge>? MonteCarloSearch(
-        UndirectedGraph<SequenceVertex, SequenceEdge> graph,
+    public ICollection<SequenceEdge>? MonteCarloSearch(UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
-        Random random
-    )
+        Random random, Func<SequenceEdge, double> weightSelector)
     {
         var stack = new Stack<SequenceVertexPath>();
         var visited = new HashSet<string>();
@@ -108,8 +107,9 @@ public static class GraphExtension
             var newEdge = WeightedPick(
                 graph.AdjacentEdges(v.Current)
                     .Where(ae => !visited.Contains(ae.Target.Name))
-                    .ToList()
-                , random);
+                    .ToList(),
+                random,
+                weightSelector);
 
             if (newEdge == null)
                 continue;
@@ -130,9 +130,10 @@ public static class GraphExtension
         return null;
     }
 
-    private static SequenceEdge? WeightedPick(ICollection<SequenceEdge> vertices, Random random)
+    private static SequenceEdge? WeightedPick(ICollection<SequenceEdge> vertices, Random random,
+        Func<SequenceEdge, double> weightSelector)
     {
-        var sum = vertices.Sum(v => v.ExtensionScore);
+        var sum = vertices.Sum(weightSelector);
 
         if (sum == 0)
             return null;
@@ -141,7 +142,7 @@ public static class GraphExtension
 
         foreach (var v in vertices)
         {
-            pick -= v.ExtensionScore;
+            pick -= weightSelector(v);
             if (pick <= 0)
                 return v;
         }

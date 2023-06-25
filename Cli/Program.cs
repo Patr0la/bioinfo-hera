@@ -1,30 +1,23 @@
 ﻿using Cli.Commands;
 using CliFx;
-using Lib.Entities;
 using Lib.Interfaces;
 using Lib.Services;
 using Microsoft.Extensions.DependencyInjection;
-using QuikGraph;
 
-public static class Program
-{
-    public static async Task<int> Main()
-    {
-        var services = new ServiceCollection();
+var services = new ServiceCollection();
 
-        services.AddSingleton<IPafIO, PafIo>();
-        services.AddSingleton<IFastaIO, FastaIO>();
-        services.AddSingleton<IConcensusBuilder, ConcensusBuilder>();
-        services.AddSingleton<ISequenceBuilder, SequenceBuilder>();
-        
-        services.AddTransient<ReadFastaCommand>();
-        
-        var serviceProvider = services.BuildServiceProvider();
+services.AddSingleton<IPafIO, PafIo>();
+services.AddSingleton<IFastaIO, FastaIO>();
+services.AddSingleton<IConsensusBuilder, ConsensusBuilder>();
+services.AddSingleton<ISequenceBuilder, SequenceBuilder>();
+services.AddSingleton<IGraphExtender, GraphExtender>();
 
-        return await new CliApplicationBuilder()
-            .AddCommandsFromThisAssembly()
-            .UseTypeActivator(serviceProvider)
-            .Build()
-            .RunAsync();
-    }
-}
+services.AddTransient<ImproveReads>();
+
+var serviceProvider = services.BuildServiceProvider();
+
+return await new CliApplicationBuilder()
+    .AddCommandsFromThisAssembly()
+    .UseTypeActivator(serviceProvider)
+    .Build()
+    .RunAsync();

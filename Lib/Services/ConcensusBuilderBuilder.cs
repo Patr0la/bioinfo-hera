@@ -3,11 +3,11 @@ using Lib.Interfaces;
 
 namespace Lib.Services;
 
-public class ConcensusBuilder : IConcensusBuilder
+public class ConsensusBuilder : IConsensusBuilder
 {
     private readonly ISequenceBuilder _sequenceBuilder;
 
-    public ConcensusBuilder(ISequenceBuilder sequenceBuilder)
+    public ConsensusBuilder(ISequenceBuilder sequenceBuilder)
     {
         _sequenceBuilder = sequenceBuilder;
     }
@@ -26,10 +26,15 @@ public class ConcensusBuilder : IConcensusBuilder
 
         if (maxLength - minLength > MAX_GROUP_SIZE)
         {
-            var groups1kb = builtPaths.GroupBy(path => (path.Data.Length - minLength) / 1000).ToList();
+            var sortedGroupsBy1kb = builtPaths
+                .GroupBy(path => (path.Data.Length - minLength) / 1000)
+                .OrderBy(group => group.Key)
+                .ToList();
+
+            var newGroups = new List<ICollection<SequenceEdge>>();
             
-            var averageFrequency = groups1kb.Average(group => group.Count());
-            
+            var averageFrequency = sortedGroupsBy1kb.Average(group => group.Count());
+
             /*
         var groups = builtPaths.GroupBy(path => path.Data.Length / MAX_GROUP_SIZE).ToList();
 
