@@ -1,3 +1,4 @@
+using System.Text;
 using Lib.Entities;
 using Lib.Interfaces;
 
@@ -17,8 +18,6 @@ public class ConsensusBuilder : IConsensusBuilder
     public Sequence Concensus(ICollection<ICollection<SequenceEdge>> paths,
         Dictionary<string, Sequence> sequences)
     {
-        var concensus = new List<Sequence>();
-
         var builtPaths = paths.Select(path => _sequenceBuilder.ConnectBetweenContigs(path, sequences)).ToList();
 
         var minLength = builtPaths.Min(path => path.Data.Length);
@@ -30,31 +29,18 @@ public class ConsensusBuilder : IConsensusBuilder
                 .GroupBy(path => (path.Data.Length - minLength) / 1000)
                 .OrderBy(group => group.Key)
                 .ToList();
-            
+
             var bestGroup = sortedGroupsBy1kb.MaxBy(group => group.Count());
 
-            return bestGroup.First();
-
-            /*
-        var groups = builtPaths.GroupBy(path => path.Data.Length / MAX_GROUP_SIZE).ToList();
-
-        foreach (var group in groups)
-        {
-            var lengthFrequencies = group.GroupBy(path => path.Data.Length).ToList();
-            var mostFrequentGroup = lengthFrequencies.MaxBy(group => group.Count());
-            var mostFrequentGroupFrequency = mostFrequentGroup.Count();
-            
-            var filteredLengthFrequency = lengthFrequencies
-                .Where(group => group.Count() > mostFrequentGroupFrequency / 2)
+            var mostCommonSameLengthSequences = bestGroup.GroupBy(x => x.Data.Length)
+                .MaxBy(g => g.Count())
                 .ToList();
-        }
-                */
-        }
-        else
-        {
-            concensus.Add(new Sequence("resoultV2", builtPaths.First().Data));
+
+            return mostCommonSameLengthSequences.GroupBy(x => x.Data)
+                .MaxBy(g => g.Count())
+                .First();
         }
 
-        return concensus.First();
+        return new Sequence("resultV2", builtPaths.First().Data);
     }
 }

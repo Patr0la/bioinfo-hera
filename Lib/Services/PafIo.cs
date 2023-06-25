@@ -96,11 +96,16 @@ public class PafIo : IPafIO
         var el2 = tstart;
 
         var si = (float)resMatches / blockLen;
+        if (si < 0.8)
+        {
+            return null;
+        }
+
         var overlap_score = (ol1 + ol2) * si / 2;
 
         if (isContig)
         {
-            if (qstart > 10000 && qend < qlen - 10000)
+            if (qstart > 2500 && qend < qlen - 2500)
             {
                 if (overlap_score > 10000)
                 {
@@ -133,7 +138,7 @@ public class PafIo : IPafIO
         {
             Source = v1,
             Target = v2,
-            
+
             SourceStart = qstart,
             SourceEnd = qend,
             TargetStart = tstart,
