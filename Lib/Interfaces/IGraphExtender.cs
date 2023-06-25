@@ -5,11 +5,9 @@ namespace Lib.Interfaces;
 
 public interface IGraphExtender
 {
-    public ICollection<SequenceEdge>? DFSByWeight(
-        UndirectedGraph<SequenceVertex, SequenceEdge> graph,
+    public ICollection<ICollection<SequenceEdge>?> DFSByWeight(UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
-        Func<SequenceEdge, double> weightSelector
-    );
+        Func<SequenceEdge, double> weightSelector);
 
     public ICollection<SequenceEdge>? MonteCarloSearch(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,

@@ -14,7 +14,7 @@ public class ConsensusBuilder : IConsensusBuilder
 
     private const int MAX_GROUP_SIZE = 10000;
 
-    public ICollection<Sequence> Concensus(ICollection<ICollection<SequenceEdge>> paths,
+    public Sequence Concensus(ICollection<ICollection<SequenceEdge>> paths,
         Dictionary<string, Sequence> sequences)
     {
         var concensus = new List<Sequence>();
@@ -30,10 +30,10 @@ public class ConsensusBuilder : IConsensusBuilder
                 .GroupBy(path => (path.Data.Length - minLength) / 1000)
                 .OrderBy(group => group.Key)
                 .ToList();
-
-            var newGroups = new List<ICollection<SequenceEdge>>();
             
-            var averageFrequency = sortedGroupsBy1kb.Average(group => group.Count());
+            var bestGroup = sortedGroupsBy1kb.MaxBy(group => group.Count());
+
+            return bestGroup.First();
 
             /*
         var groups = builtPaths.GroupBy(path => path.Data.Length / MAX_GROUP_SIZE).ToList();
@@ -52,9 +52,9 @@ public class ConsensusBuilder : IConsensusBuilder
         }
         else
         {
-            concensus.Add(new Sequence("group", string.Join("", builtPaths.Select(path => path.Data))));
+            concensus.Add(new Sequence("resoultV2", builtPaths.First().Data));
         }
 
-        return concensus;
+        return concensus.First();
     }
 }

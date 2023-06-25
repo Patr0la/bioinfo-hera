@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Lib.Entities;
 using Lib.Interfaces;
 using QuikGraph;
@@ -6,21 +7,22 @@ namespace Lib.Services;
 
 public class GraphExtender : IGraphExtender
 {
-    public ICollection<SequenceEdge>? DFSByWeight(
+    public ICollection<ICollection<SequenceEdge>?> DFSByWeight(
         UndirectedGraph<SequenceVertex, SequenceEdge> graph,
         string start,
         Func<SequenceEdge, double> weightSelector
     )
     {
-        var stack = new Stack<SequenceVertexPath>();
-        var visited = new HashSet<string> { start };
+        var foundPaths = new List<ICollection<SequenceEdge>?>();
 
-        var newEdges = graph
-            .AdjacentEdges(new SequenceVertex()
-            {
-                Name = start
-            })
-            .OrderBy(weightSelector)
+        var startableEdges = graph.AdjacentEdges(new SequenceVertex()
+        {
+            Name = start
+        }).ToList();
+
+        var newEdges = startableEdges
+            .OrderByDescending(weightSelector)
+            .Take((int)(startableEdges.Count * 0.2))
             .Select(e =>
                 new SequenceVertexPath()
                 {
@@ -29,47 +31,58 @@ public class GraphExtender : IGraphExtender
                 }
             ).ToList();
 
-        foreach (var e in newEdges)
+        Parallel.ForEach(Partitioner.Create(0, newEdges.Count), range =>
         {
-            stack.Push(e);
-        }
-
-        while (stack.Count > 0)
-        {
-            var v = stack.Pop();
-
-            var ctgReachedEdge = graph.AdjacentEdges(v.Current)
-                .FirstOrDefault(e =>
-                    (e.Target.IsAnchor || e.Source.IsAnchor) && (e.Source.Name != start && e.Target.Name != start));
-            if (ctgReachedEdge != null)
+            for (var i = range.Item1; i < range.Item2; i++)
             {
-                var path = v.Path.ToList();
-                path.Add(ctgReachedEdge);
-                return path;
+                var startingEdge = newEdges[i];
+
+                var stack = new Stack<SequenceVertexPath>();
+                var visited = new HashSet<string> { start };
+
+                stack.Push(startingEdge);
+
+                while (stack.Count > 0)
+                {
+                    var v = stack.Pop();
+
+                    var ctgReachedEdge = graph.AdjacentEdges(v.Current)
+                        .FirstOrDefault(e =>
+                            (e.Target.IsAnchor || e.Source.IsAnchor) &&
+                            (e.Source.Name != start && e.Target.Name != start));
+                    if (ctgReachedEdge != null)
+                    {
+                        var path = v.Path.ToList();
+                        path.Add(ctgReachedEdge);
+
+                        foundPaths.Add(path);
+                    }
+
+                    visited.Add(v.Current.Name);
+
+                    var newEdge = graph.AdjacentEdges(v.Current)
+                        .Where(e => !visited.Contains(e.Target.Name))
+                        .MaxBy(weightSelector);
+
+                    if (newEdge == null)
+                        continue;
+
+                    stack.Push(v);
+
+                    var newPath = v.Path.ToList();
+                    newPath.Add(newEdge);
+
+                    stack.Push(new SequenceVertexPath()
+                    {
+                        Current = newEdge.Target,
+                        Path = newPath.ToArray(),
+                    });
+                }
             }
+        });
 
-            visited.Add(v.Current.Name);
 
-            var newEdge = graph.AdjacentEdges(v.Current)
-                .Where(e => !visited.Contains(e.Target.Name))
-                .MaxBy(weightSelector);
-
-            if (newEdge == null)
-                continue;
-
-            stack.Push(v);
-
-            var newPath = v.Path.ToList();
-            newPath.Add(newEdge);
-
-            stack.Push(new SequenceVertexPath()
-            {
-                Current = newEdge.Target,
-                Path = newPath.ToArray(),
-            });
-        }
-
-        return null;
+        return foundPaths;
     }
 
     public ICollection<SequenceEdge>? MonteCarloSearch(UndirectedGraph<SequenceVertex, SequenceEdge> graph,

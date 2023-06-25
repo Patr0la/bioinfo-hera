@@ -51,7 +51,7 @@ public class ImproveReads : ICommand
     public bool Verbose { get; set; }
 
     [CommandOption("monte-carlo-repeats", Description = "The number of monte carlo repeats.")]
-    public int MonteCarloRepeats { get; set; } = 5000;
+    public int MonteCarloRepeats { get; set; } = 3000;
 
     public ValueTask ExecuteAsync(IConsole console)
     {
@@ -65,11 +65,13 @@ public class ImproveReads : ICommand
 
         var ctgConnectionPaths = new List<ICollection<SequenceEdge>>(contigs.Count);
 
+        var bestPaths = new List<Sequence>();
+
         foreach (var contig in contigs)
         {
             var contigPaths = new List<ICollection<SequenceEdge>?>();
-            contigPaths.Add(_graphExtender.DFSByWeight(graph, contig.Key, e => e.OverlapScore));
-            contigPaths.Add(_graphExtender.DFSByWeight(graph, contig.Key, e => e.ExtensionScore));
+            contigPaths.AddRange(_graphExtender.DFSByWeight(graph, contig.Key, e => e.OverlapScore));
+            contigPaths.AddRange(_graphExtender.DFSByWeight(graph, contig.Key, e => e.ExtensionScore));
 
             Parallel.ForEach(Partitioner.Create(0, MonteCarloRepeats), range =>
             {
@@ -86,10 +88,14 @@ public class ImproveReads : ICommand
             if (validPaths.Count > 0)
             {
                 var bestPath = _consensusBuilder.Concensus(validPaths, sequences);
+
+                bestPaths.Add(bestPath);
             }
         }
 
-        var dotGraph = graph.ToGraphviz(algorithm =>
+        _fastaIo.SaveFasta(OutputPath, _sequenceBuilder.DebugBuild(contigs.Values, bestPaths));
+
+            var dotGraph = graph.ToGraphviz(algorithm =>
         {
             algorithm.CommonVertexFormat.Shape = GraphvizVertexShape.Diamond;
             algorithm.CommonEdgeFormat.ToolTip = "Edge tooltip";
